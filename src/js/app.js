@@ -4,20 +4,87 @@
  * This is where you write your app.
  */
 
+
 var UI = require('ui');
-var Vector2 = require('vector2');
+var ajax = require('ajax');
+// var Vector2 = require('vector2');
 
 var main = new UI.Card({
-  title: 'Pebble.js',
-  icon: 'images/menu_icon.png',
-  subtitle: 'Hello World!',
-  body: 'Press any button.',
+  scrollable: true,
+  title: '',
+  icon: '',
+  subtitle: '',
+  body: '',
   subtitleColor: 'indigo', // Named colors
   bodyColor: '#9a0036' // Hex colors
 });
 
 main.show();
 
+function api ( lat , lon ) {
+	return 'https://stib-mivb-api.herokuapp.com/realtime/closest/' + lat + '/' + lon ;
+}
+
+function body ( msg ) {
+	console.log('body: ' + msg);
+	main.body(msg);
+}
+
+function subtitle ( msg ) {
+	console.log('subtitle: ' + msg);
+	main.subtitle(msg);
+}
+
+function show(position){
+	
+	var lat = position.coords.latitude;
+	var lon = position.coords.longitude;
+	var msg = '( ' + lat + ' , ' + lon + ' )' ;
+	body(msg);
+	
+	ajax({ url: api(lat,lon), type: 'json' },
+	  function(data, status, request) {
+		subtitle(data.stop.name);
+		if ( data.realtime.results.length === 0 ) {
+			body('nothing here :(') ;
+		}
+		else {
+			var next = data.realtime.results[0] ;
+			var msg = next.line + ' ' + next.destination + ' in ' + next.minutes ;
+			body(msg) ;
+		}
+	  },
+	  function(data, status, request) {
+		subtitle('API failed: ' + status ) ;
+		body(data.message);
+	  }
+	);
+}
+
+function fail(){
+	subtitle('could not load geolocation');
+}
+
+function load(){
+	
+	subtitle('loading...');
+	body('');
+	
+	if(navigator && navigator.geolocation){
+		var opts = {maximumAge:60000, timeout:5000, enableHighAccuracy:true};
+		navigator.geolocation.getCurrentPosition(show, fail, opts);
+	}
+	else{
+		subtitle('navigator is not enabled');
+	}
+}
+
+main.on('click', 'select', function(e) { load() ; } ) ;
+
+load();
+
+
+/**
 main.on('click', 'up', function(e) {
   var menu = new UI.Menu({
     sections: [{
@@ -86,3 +153,4 @@ main.on('click', 'down', function(e) {
   card.body('The simplest window type in Pebble.js.');
   card.show();
 });
+*/
