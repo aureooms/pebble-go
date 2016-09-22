@@ -67,8 +67,8 @@ var fnumber = new UI.Text({
 });
 
 var fmessage = new UI.Text({
- position: new Vector2(25, 30),
- size: new Vector2(w - 15, h - 30),
+ position: new Vector2(17, 30),
+ size: new Vector2(w - 34, h - 30),
  font: 'gothic-24-bold',
  color: CKO ,
  textAlign: 'center',
