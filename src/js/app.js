@@ -29,7 +29,6 @@ var CKO = '#FF0055' ;
 
 var main = new UI.Window({
 	scrollable: false,
-	action: 'none',
 	status: {
 		separator : 'none',
 		color: '#FFFFFF',
@@ -43,7 +42,7 @@ var h = size.y ;
 
 var background = new UI.Rect({
  position: new Vector2(0, 0),
- size: new Vector2(150, 150),
+ size: new Vector2(w, h),
  backgroundColor: '#FFFFFF'
 });
 
@@ -51,7 +50,7 @@ main.add(background);
 
 var fstop = new UI.Text({
  position: new Vector2(25, 0),
- size: new Vector2(w - 15, 20),
+ size: new Vector2(w - 50, 20),
  font: 'gothic-24-bold',
  backgroundColor: 'none',
  color: '#000000' ,
@@ -60,7 +59,7 @@ var fstop = new UI.Text({
 });
 		 
 var fnumber = new UI.Text({
- position: new Vector2(25, 30),
+ position: new Vector2(17, 30),
  size: new Vector2(32, 32),
  font: 'gothic-24-bold',
  textAlign: 'center',
@@ -77,8 +76,8 @@ var fmessage = new UI.Text({
 });
 		 
 var fline = new UI.Text({
- position: new Vector2(62, 30),
- size: new Vector2(120, 20),
+ position: new Vector2(54, 30),
+ size: new Vector2(w-64, 20),
  font: 'gothic-24-bold',
  color: '#000000' ,
  textAlign: 'left',
@@ -86,8 +85,8 @@ var fline = new UI.Text({
 });
 
 var fminutes = new UI.Text({
- position: new Vector2(60,72),
- size: new Vector2(60, 30),
+ position: new Vector2(0,72),
+ size: new Vector2(w, 30),
  font: 'bitham-42-bold',
  text: '7',
  color: '#555555' ,
