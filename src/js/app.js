@@ -12,6 +12,7 @@ var Vector2 = require('vector2');
 var ajax = require('ajax');
 var Vibe = require('ui/vibe');
 
+var BUSY = false ;
 var TIMESTAMP = 0 ;
 var TKO = 60000 ;
 var STOP_ID = null ;
@@ -23,16 +24,19 @@ var DATA = null ;
 
 var TIMEOUT = null;
 
-var COK = '#55AA55' ;
-var CLO = '#55AAAA' ;
-var CKO = '#FF0055' ;
+var BOK = '#55AA55' ;
+var BLO = '#FFFF55' ;
+var BKO = '#FF0055' ;
+var FOK = '#FFFFFF' ;
+var FLO = '#000000' ;
+var FKO = '#FFFFFF' ;
 
 var main = new UI.Window({
 	scrollable: false,
 	status: {
 		separator : 'none',
-		color: '#FFFFFF',
-		backgroundColor: CKO
+		color: FKO,
+		backgroundColor: BKO
 	}
 });
 
@@ -70,7 +74,7 @@ var fmessage = new UI.Text({
  position: new Vector2(17, 30),
  size: new Vector2(w - 34, h - 30),
  font: 'gothic-24-bold',
- color: CKO ,
+ color: BKO ,
  textAlign: 'center',
  textOverflow: 'wrap'
 });
@@ -190,11 +194,13 @@ function other ( ) {
 function handle_error ( title , message ) {
 	if ( Date.now() - TIMESTAMP < TKO ) {
 		bindnav();
-		main.status('backgroundColor', COK);
+		main.status('color', FOK);
+		main.status('backgroundColor', BOK);
 		TIMEOUT = setTimeout( load , 30000 ) ;
 		return ;
 	}
-	main.status('backgroundColor', CKO);
+	main.status('color', FKO);
+	main.status('backgroundColor', BKO);
 	fstop.text( title );
 	fmessage.text( message );
 	rm(fnumber);
@@ -243,7 +249,8 @@ function query ( position ) {
 		}
 		_display();
 	    bindnav();
-		main.status('backgroundColor', COK);
+		main.status('color', FOK);
+		main.status('backgroundColor', BOK);
 		TIMESTAMP = Date.now();
 		TIMEOUT = setTimeout( load , 30000 ) ;
 	  },
@@ -259,9 +266,17 @@ function geofail(){
 
 function load(){
 	
-	unbind();
+	if ( BUSY ) return ;
 	
-	main.status('backgroundColor', CLO ) ;
+	BUSY = true ;
+	
+	if ( TIMEOUT !== null ) {
+		clearTimeout(TIMEOUT);
+		TIMEOUT = null ;
+	}
+	
+	main.status('color', FLO ) ;
+	main.status('backgroundColor', BLO ) ;
 	
 	if(navigator && navigator.geolocation){
 		var opts = {maximumAge:60000, timeout:5000, enableHighAccuracy:true};
@@ -273,15 +288,24 @@ function load(){
 }
 
 function bindload ( ) {
+	
+	unbind();
+
 	main.on('click', 'select', function(e) { load() ; } ) ;
 	main.on('click', 'down', function(e) { load() ; } ) ;
 	main.on('click', 'up', function(e) { load() ; } ) ;
 	main.on('longClick', 'select', function(e) { load() ; } ) ;
 	main.on('longClick', 'down', function(e) { load() ; } ) ;
 	main.on('longClick', 'up', function(e) { load() ; } ) ;
+	
+	BUSY = false ;
+	
 }
 
 function bindnav ( ) {
+	
+	unbind();
+	
 	main.on('click', 'select', function(e) { other() ; } ) ;
 	main.on('click', 'down', function(e) { next() ; } ) ;
 	main.on('click', 'up', function(e) { prev() ; } ) ;
@@ -290,24 +314,42 @@ function bindnav ( ) {
 	main.on('longClick', 'up', function(e) { load() ; } ) ;
 
 	main.on('hide', function(){
-		clearTimeout(TIMEOUT);
-		TIMEOUT = null ;
+		if ( TIMEOUT !== null ) {
+			clearTimeout(TIMEOUT);
+			TIMEOUT = null ;
+		}
 	});
 
 	main.on('show', function(){
 		load();
 	});
+	
+	BUSY = false ;
 }
 
 function unbind ( ) {
-	main.on('click', 'select', function(e) { } ) ;
-	main.on('click', 'down', function(e) { } ) ;
-	main.on('click', 'up', function(e) { } ) ;
-	main.on('longClick', 'select', function(e) { } ) ;
-	main.on('longClick', 'down', function(e) { } ) ;
-	main.on('longClick', 'up', function(e) { } ) ;
-	main.on('hide', function(){});
-	main.on('show', function(){});
+	
+	try{
+		main.off('click');
+	}
+	catch(e){
+	}
+	try{
+		main.off('longClick');
+	}
+	catch(e){
+	}
+	try{
+		main.off('hide');
+	}
+	catch(e){
+	}
+	try{
+		main.off('show');
+	}
+	catch(e){
+	}
+	
 }
 
 load();
