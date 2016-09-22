@@ -6,10 +6,14 @@
 
 
 var UI = require('ui');
+var Vector2 = require('vector2');
+
+
 var ajax = require('ajax');
 var Vibe = require('ui/vibe');
-// var Vector2 = require('vector2');
 
+var TIMESTAMP = 0 ;
+var TKO = 60000 ;
 var STOP_ID = null ;
 var LINE_ID = null ;
 var STOP_INDEX = null ;
@@ -17,15 +21,79 @@ var LINE_INDEX = null ;
 var ERROR = null ;
 var DATA = null ;
 
-var main = new UI.Card({
-  scrollable: true,
-  style: 'mono',
-  title: '',
-  icon: '',
-  subtitle: '',
-  body: '',
-  subtitleColor: 'indigo', // Named colors
-  bodyColor: '#9a0036' // Hex colors
+var TIMEOUT = null;
+
+var COK = '#55AA55' ;
+var CLO = '#55AAAA' ;
+var CKO = '#FF0055' ;
+
+var main = new UI.Window({
+	scrollable: false,
+	action: 'none',
+	status: {
+		separator : 'none',
+		color: '#FFFFFF',
+		backgroundColor: CKO
+	}
+});
+
+var size = main.size();
+var w = size.x ;
+var h = size.y ;
+
+var background = new UI.Rect({
+ position: new Vector2(0, 0),
+ size: new Vector2(150, 150),
+ backgroundColor: '#FFFFFF'
+});
+
+main.add(background);
+
+var fstop = new UI.Text({
+ position: new Vector2(25, 0),
+ size: new Vector2(w - 15, 20),
+ font: 'gothic-24-bold',
+ backgroundColor: 'none',
+ color: '#000000' ,
+ textAlign: 'center',
+ textOverflow: 'ellipsis'
+});
+		 
+var fnumber = new UI.Text({
+ position: new Vector2(25, 30),
+ size: new Vector2(32, 32),
+ font: 'gothic-24-bold',
+ textAlign: 'center',
+ textOverflow: 'fill'
+});
+
+var fmessage = new UI.Text({
+ position: new Vector2(25, 30),
+ size: new Vector2(w - 15, h - 30),
+ font: 'gothic-24-bold',
+ color: CKO ,
+ textAlign: 'center',
+ textOverflow: 'wrap'
+});
+		 
+var fline = new UI.Text({
+ position: new Vector2(62, 30),
+ size: new Vector2(120, 20),
+ font: 'gothic-24-bold',
+ color: '#000000' ,
+ textAlign: 'left',
+ textOverflow: 'ellipsis'
+});
+
+var fminutes = new UI.Text({
+ position: new Vector2(60,72),
+ size: new Vector2(60, 30),
+ font: 'bitham-42-bold',
+ text: '7',
+ color: '#555555' ,
+ backgroundColor: 'none',
+ textAlign: 'center',
+ textOverflow: 'fill'
 });
 
 main.show();
@@ -36,19 +104,13 @@ function api ( lat , lon ) {
 	return 'https://stib-mivb-api.herokuapp.com/realtime/nclosest/' + n + '/' + lat + '/' + lon + '?max_requests=' + m ;
 }
 
-function title ( msg ) {
-	console.log('title: ' + msg);
-	main.title(msg);
+function ad ( f ) {
+	if ( main.index(f) < 0 ) main.add(f);
 }
 
-function body ( msg ) {
-	console.log('body: ' + msg);
-	main.body(msg);
-}
-
-function subtitle ( msg ) {
-	console.log('subtitle: ' + msg);
-	main.subtitle(msg);
+function rm ( f ) {
+	f.text('');
+	if ( main.index(f) >= 0 ) main.remove(f);
 }
 
 function _display ( ) {
@@ -56,28 +118,44 @@ function _display ( ) {
 	STOP_ID = DATA.stops[STOP_INDEX].id ;
 	
 	if ( DATA.stops[STOP_INDEX].realtime.error ) {
-		title( DATA.stops[STOP_INDEX].name );
-		subtitle( DATA.stops[STOP_INDEX].realtime.message );
-		body(':(');
+		fstop.text( DATA.stops[STOP_INDEX].name );
+		fmessage.text( DATA.stops[STOP_INDEX].realtime.message );
+		rm(fnumber);
+		rm(fline);
+		rm(fminutes);
+		ad(fmessage);
+		ad(fstop);
 		return ;
 	}
 	
 	if ( DATA.stops[STOP_INDEX].realtime.results.length === 0 ) {
-		title(DATA.stops[STOP_INDEX].name);
-		subtitle('nothing right now');
-		body(':(');
+		fstop.text( DATA.stops[STOP_INDEX].name );
+		fmessage.text( 'nothing right now' );
+		rm(fnumber);
+		rm(fline);
+		rm(fminutes);
+		ad(fmessage);
+		ad(fstop);
 		return ;
 	}
 	
 	LINE_ID = DATA.stops[STOP_INDEX].realtime.results[LINE_INDEX].line ;
 	
 	var next = DATA.stops[STOP_INDEX].realtime.results[LINE_INDEX] ;
-	var msg = next.line + ' ' + next.destination ;
 	
-	title( DATA.stops[STOP_INDEX].name );
-	subtitle(msg) ;
-	body(next.minutes) ;
+	fstop.text( DATA.stops[STOP_INDEX].name ) ;
+	fnumber.text(next.line) ;
+	fnumber.backgroundColor(next.bgcolor) ;
+	fnumber.color(next.fgcolor) ;
+	fline.text(next.destination) ;
+	fminutes.text(next.minutes) ;
 	
+	rm(fmessage);
+	ad(fstop);
+	ad(fnumber);
+	ad(fline);
+	ad(fminutes);
+
 	if ( next.minutes === 0 ) Vibe.vibrate('double');
 }
 
@@ -110,12 +188,28 @@ function other ( ) {
 	_display ( ) ;
 }
 
+function handle_error ( title , message ) {
+	if ( Date.now() - TIMESTAMP < TKO ) {
+		bindnav();
+		main.status('backgroundColor', COK);
+		TIMEOUT = setTimeout( load , 30000 ) ;
+		return ;
+	}
+	main.status('backgroundColor', CKO);
+	fstop.text( title );
+	fmessage.text( message );
+	rm(fnumber);
+	rm(fline);
+	rm(fminutes);
+	ad(fmessage);
+	ad(fstop);
+	bindload();
+}
+
 function query ( position ) {
 	
 	var lat = position.coords.latitude;
 	var lon = position.coords.longitude;
-	var msg = '(' + lat + ' , ' + lon + ')' ;
-	body(msg);
 	
 	ajax({ url: api(lat,lon), type: 'json' },
 	  function(data, status, request) {
@@ -150,41 +244,32 @@ function query ( position ) {
 		}
 		_display();
 	    bindnav();
-		setTimeout( load , 30000 ) ;
+		main.status('backgroundColor', COK);
+		TIMESTAMP = Date.now();
+		TIMEOUT = setTimeout( load , 30000 ) ;
 	  },
 	  function(data, status, request) {
-		title('ERROR');
-		subtitle('API failed ' + status );
-		body(data.message);
-		bindload();
+		handle_error('API failed ' + status , data.message ) ;
 	  }
 	);
 }
 
 function geofail(){
-	title('ERROR');
-	subtitle('could not load geolocation');
-	body(':(');
-	bindload();
+	handle_error('ERROR', 'could not load geolocation :(');
 }
 
 function load(){
 	
 	unbind();
 	
-	title('Go');
-	subtitle('loading...');
-	body('');
+	main.status('backgroundColor', CLO ) ;
 	
 	if(navigator && navigator.geolocation){
 		var opts = {maximumAge:60000, timeout:5000, enableHighAccuracy:true};
 		navigator.geolocation.getCurrentPosition(query, geofail, opts);
 	}
 	else{
-		title('ERROR');
-		subtitle('navigator is not enabled');
-		body(':(');
-		bindload();
+		handle_error('ERROR', 'navigator not enabled :(');
 	}
 }
 
@@ -192,90 +277,38 @@ function bindload ( ) {
 	main.on('click', 'select', function(e) { load() ; } ) ;
 	main.on('click', 'down', function(e) { load() ; } ) ;
 	main.on('click', 'up', function(e) { load() ; } ) ;
+	main.on('longClick', 'select', function(e) { load() ; } ) ;
+	main.on('longClick', 'down', function(e) { load() ; } ) ;
+	main.on('longClick', 'up', function(e) { load() ; } ) ;
 }
 
 function bindnav ( ) {
 	main.on('click', 'select', function(e) { other() ; } ) ;
 	main.on('click', 'down', function(e) { next() ; } ) ;
 	main.on('click', 'up', function(e) { prev() ; } ) ;
+	main.on('longClick', 'select', function(e) { load() ; } ) ;
+	main.on('longClick', 'down', function(e) { load() ; } ) ;
+	main.on('longClick', 'up', function(e) { load() ; } ) ;
+
+	main.on('hide', function(){
+		clearTimeout(TIMEOUT);
+		TIMEOUT = null ;
+	});
+
+	main.on('show', function(){
+		load();
+	});
 }
 
 function unbind ( ) {
 	main.on('click', 'select', function(e) { } ) ;
 	main.on('click', 'down', function(e) { } ) ;
 	main.on('click', 'up', function(e) { } ) ;
+	main.on('longClick', 'select', function(e) { } ) ;
+	main.on('longClick', 'down', function(e) { } ) ;
+	main.on('longClick', 'up', function(e) { } ) ;
+	main.on('hide', function(){});
+	main.on('show', function(){});
 }
 
 load();
-
-
-/**
-main.on('click', 'up', function(e) {
-  var menu = new UI.Menu({
-    sections: [{
-      items: [{
-        title: 'Pebble.js',
-        icon: 'images/menu_icon.png',
-        subtitle: 'Can do Menus'
-      }, {
-        title: 'Second Item',
-        subtitle: 'Subtitle Text'
-      }, {
-        title: 'Third Item',
-      }, {
-        title: 'Fourth Item',
-      }]
-    }]
-  });
-  menu.on('select', function(e) {
-    console.log('Selected item #' + e.itemIndex + ' of section #' + e.sectionIndex);
-    console.log('The item is titled "' + e.item.title + '"');
-  });
-  menu.show();
-});
-
-main.on('click', 'select', function(e) {
-  var wind = new UI.Window({
-    backgroundColor: 'black'
-  });
-  var radial = new UI.Radial({
-    size: new Vector2(140, 140),
-    angle: 0,
-    angle2: 300,
-    radius: 20,
-    backgroundColor: 'cyan',
-    borderColor: 'celeste',
-    borderWidth: 1,
-  });
-  var textfield = new UI.Text({
-    size: new Vector2(140, 60),
-    font: 'gothic-24-bold',
-    text: 'Dynamic\nWindow',
-    textAlign: 'center'
-  });
-  var windSize = wind.size();
-  // Center the radial in the window
-  var radialPos = radial.position()
-      .addSelf(windSize)
-      .subSelf(radial.size())
-      .multiplyScalar(0.5);
-  radial.position(radialPos);
-  // Center the textfield in the window
-  var textfieldPos = textfield.position()
-      .addSelf(windSize)
-      .subSelf(textfield.size())
-      .multiplyScalar(0.5);
-  textfield.position(textfieldPos);
-  wind.add(radial);
-  wind.add(textfield);
-  wind.show();
-});
-
-main.on('click', 'down', function(e) {
-  var card = new UI.Card();
-  card.title('A Card');
-  card.subtitle('Is a Window');
-  card.body('The simplest window type in Pebble.js.');
-  card.show();
-});
-*/
