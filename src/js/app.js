@@ -92,7 +92,7 @@ var fminutes = new UI.Text({
  position: new Vector2(0,72),
  size: new Vector2(w, 30),
  font: 'bitham-42-bold',
- text: '7',
+ text: '',
  color: '#555555' ,
  backgroundColor: 'none',
  textAlign: 'center',
