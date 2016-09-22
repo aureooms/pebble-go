@@ -102,8 +102,8 @@ var fminutes = new UI.Text({
 main.show();
 
 function api ( lat , lon ) {
-	var n = 6 ;
-	var m = 20 ;
+	var n = 10 ;
+	var m = 30 ;
 	return 'https://stib-mivb-api.herokuapp.com/realtime/nclosest/' + n + '/' + lat + '/' + lon + '?max_requests=' + m ;
 }
 
