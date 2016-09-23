@@ -31,8 +31,11 @@ var FOK = '#FFFFFF' ;
 var FLO = '#000000' ;
 var FKO = '#FFFFFF' ;
 
+var WIDGETS = [];
+
 var main = new UI.Window({
-	scrollable: false,
+	scrollable: true,
+ 	backgroundColor: '#FFFFFF',
 	status: {
 		separator : 'none',
 		color: FKO,
@@ -44,14 +47,6 @@ var size = main.size();
 var w = size.x ;
 var h = size.y ;
 
-var background = new UI.Rect({
- position: new Vector2(0, 0),
- size: new Vector2(w, h),
- backgroundColor: '#FFFFFF'
-});
-
-main.add(background);
-
 var fstop = new UI.Text({
  position: new Vector2(25, 0),
  size: new Vector2(w - 50, 20),
@@ -61,42 +56,16 @@ var fstop = new UI.Text({
  textAlign: 'center',
  textOverflow: 'ellipsis'
 });
-		 
-var fnumber = new UI.Text({
- position: new Vector2(17, 30),
- size: new Vector2(32, 32),
- font: 'gothic-24-bold',
- textAlign: 'center',
- textOverflow: 'fill'
-});
+
+var LEFT = 15;
 
 var fmessage = new UI.Text({
- position: new Vector2(17, 30),
+ position: new Vector2(LEFT, 30),
  size: new Vector2(w - 34, h - 30),
  font: 'gothic-24-bold',
  color: BKO ,
  textAlign: 'center',
  textOverflow: 'wrap'
-});
-		 
-var fline = new UI.Text({
- position: new Vector2(54, 30),
- size: new Vector2(w-64, 20),
- font: 'gothic-24-bold',
- color: '#000000' ,
- textAlign: 'left',
- textOverflow: 'ellipsis'
-});
-
-var fminutes = new UI.Text({
- position: new Vector2(0,72),
- size: new Vector2(w, 30),
- font: 'bitham-42-bold',
- text: '',
- color: '#555555' ,
- backgroundColor: 'none',
- textAlign: 'center',
- textOverflow: 'fill'
 });
 
 main.show();
@@ -108,78 +77,92 @@ function api ( lat , lon ) {
 }
 
 function ad ( f ) {
-	if ( main.index(f) < 0 ) main.add(f);
+	WIDGETS.push(f);
+	main.add(f);
 }
 
 function rm ( f ) {
 	f.text('');
-	if ( main.index(f) >= 0 ) main.remove(f);
+	main.remove(f);
+}
+
+function clear ( ) {
+	var len = WIDGETS.length ;
+	for ( var i = 0 ; i < len ; ++i ) {
+		rm(WIDGETS[i]);
+	}
+	WIDGETS = [] ;
 }
 
 function _display ( ) {
 	
+	clear();
+	
 	STOP_ID = DATA.stops[STOP_INDEX].id ;
 	
-	if ( DATA.stops[STOP_INDEX].realtime.error ) {
-		fstop.text( DATA.stops[STOP_INDEX].name );
-		fmessage.text( DATA.stops[STOP_INDEX].realtime.message );
-		rm(fnumber);
-		rm(fline);
-		rm(fminutes);
-		ad(fmessage);
-		ad(fstop);
-		return ;
-	}
-	
-	if ( DATA.stops[STOP_INDEX].realtime.results.length === 0 ) {
-		fstop.text( DATA.stops[STOP_INDEX].name );
-		fmessage.text( 'nothing right now' );
-		rm(fnumber);
-		rm(fline);
-		rm(fminutes);
-		ad(fmessage);
-		ad(fstop);
-		return ;
-	}
-	
-	LINE_ID = DATA.stops[STOP_INDEX].realtime.results[LINE_INDEX].line ;
-	
-	var next = DATA.stops[STOP_INDEX].realtime.results[LINE_INDEX] ;
-	
-	fstop.text( DATA.stops[STOP_INDEX].name ) ;
-	fnumber.text(next.line) ;
-	fnumber.backgroundColor(next.bgcolor) ;
-	fnumber.color(next.fgcolor) ;
-	fline.text(next.destination) ;
-	fminutes.text(next.minutes) ;
-	
-	rm(fmessage);
+	fstop.text( DATA.stops[STOP_INDEX].name );
 	ad(fstop);
-	ad(fnumber);
-	ad(fline);
-	ad(fminutes);
-
-	if ( next.minutes === 0 ) Vibe.vibrate('double');
-}
-
-function prev ( ) {
-	if ( !DATA.stops[STOP_INDEX].realtime.error ) {
-		--LINE_INDEX ;
-		if ( LINE_INDEX < 0 ) {
-			LINE_INDEX = DATA.stops[STOP_INDEX].realtime.results.length - 1 ;
-		}
+	
+	if ( DATA.stops[STOP_INDEX].realtime.error ) {
+		fmessage.text( DATA.stops[STOP_INDEX].realtime.message );
+		ad(fmessage);
+		return ;
 	}
-	_display ( ) ;
-}
-
-function next ( ) {
-	if ( !DATA.stops[STOP_INDEX].realtime.error ) {
-		++LINE_INDEX ;
-		if ( LINE_INDEX >= DATA.stops[STOP_INDEX].realtime.results.length ) {
-			LINE_INDEX = 0 ;
-		}
+	
+	var n = DATA.stops[STOP_INDEX].realtime.results.length;
+	
+	if ( n === 0 ) {
+		fmessage.text( 'nothing right now' );
+		ad(fmessage);
+		return ;
 	}
-	_display ( ) ;
+	
+	for ( var i = 0 ; i < n ; ++i ) {
+	
+		var next = DATA.stops[STOP_INDEX].realtime.results[i] ;
+
+		var offset = i*35 ;
+
+		var fnumber = new UI.Text({
+		 position: new Vector2(LEFT, 30+offset),
+		 size: new Vector2(32, 32),
+		 font: 'gothic-24-bold',
+		 textAlign: 'center',
+		 textOverflow: 'fill',
+		 text: next.line,
+		 color: next.fgcolor,
+		 backgroundColor: next.bgcolor
+		});
+
+		var fline = new UI.Text({
+		 position: new Vector2(LEFT+37, 30+offset),
+		 size: new Vector2(w-91, 20),
+		 font: 'gothic-24-bold',
+		 color: '#000000' ,
+		 textAlign: 'left',
+		 textOverflow: 'ellipsis' ,
+		 text: next.destination
+		});
+
+		var fminutes = new UI.Text({
+		 position: new Vector2(LEFT+w-54,30+offset),
+		 size: new Vector2(22, 20),
+		 font: 'gothic-24-bold',
+		 text: next.minutes,
+		 color: '#555555' ,
+		 backgroundColor: 'none',
+		 textAlign: 'center',
+		 textOverflow: 'fill'
+		});	
+
+		ad(fnumber);
+		ad(fline);
+		ad(fminutes);
+
+		if ( i === 0 && next.minutes === 0 ) Vibe.vibrate('double');
+		
+	}
+	
 }
 
 function other ( ) {
@@ -201,11 +184,9 @@ function handle_error ( title , message ) {
 	}
 	main.status('color', FKO);
 	main.status('backgroundColor', BKO);
+	clear();
 	fstop.text( title );
 	fmessage.text( message );
-	rm(fnumber);
-	rm(fline);
-	rm(fminutes);
 	ad(fmessage);
 	ad(fstop);
 	bindload();
@@ -292,8 +273,6 @@ function bindload ( ) {
 	unbind();
 
 	main.on('click', 'select', function(e) { load() ; } ) ;
-	main.on('click', 'down', function(e) { load() ; } ) ;
-	main.on('click', 'up', function(e) { load() ; } ) ;
 	main.on('longClick', 'select', function(e) { load() ; } ) ;
 	main.on('longClick', 'down', function(e) { load() ; } ) ;
 	main.on('longClick', 'up', function(e) { load() ; } ) ;
@@ -307,8 +286,6 @@ function bindnav ( ) {
 	unbind();
 	
 	main.on('click', 'select', function(e) { other() ; } ) ;
-	main.on('click', 'down', function(e) { next() ; } ) ;
-	main.on('click', 'up', function(e) { prev() ; } ) ;
 	main.on('longClick', 'select', function(e) { load() ; } ) ;
 	main.on('longClick', 'down', function(e) { load() ; } ) ;
 	main.on('longClick', 'up', function(e) { load() ; } ) ;
