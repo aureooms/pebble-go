@@ -21,6 +21,8 @@ var STOP_INDEX = null ;
 var LINE_INDEX = null ;
 var ERROR = null ;
 var DATA = null ;
+var MAX_REQUESTS = 10 ;
+var NCLOSEST = 10 ;
 
 var TIMEOUT = null;
 
@@ -71,8 +73,8 @@ var fmessage = new UI.Text({
 main.show();
 
 function api ( lat , lon ) {
-	var n = 10 ;
-	var m = 30 ;
+	var n = NCLOSEST ;
+	var m = MAX_REQUESTS ;
 	return 'https://stib-mivb-api.herokuapp.com/realtime/nclosest/' + n + '/' + lat + '/' + lon + '?max_requests=' + m ;
 }
 
