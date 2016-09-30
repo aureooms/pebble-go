@@ -12,6 +12,10 @@ var Vector2 = require('vector2');
 var ajax = require('ajax');
 var Vibe = require('ui/vibe');
 
+var GEOID = null ;
+var GEOERROR = 'GEOLOCATION NOT STARTED' ;
+var LAT = null ;
+var LON = null ;
 var BUSY = false ;
 var TIMESTAMP = 0 ;
 var TKO = 60000 ;
@@ -23,6 +27,11 @@ var ERROR = null ;
 var DATA = null ;
 var MAX_REQUESTS = 10 ;
 var NCLOSEST = 10 ;
+var NAVIGATOR_GEOLOCATION_OPTS = {
+	maximumAge:0,
+	timeout:5000,
+	enableHighAccuracy:true
+};
 
 var TIMEOUT = null;
 
@@ -194,12 +203,25 @@ function handle_error ( title , message ) {
 	bindload();
 }
 
-function query ( position ) {
+function load ( ) {
 	
-	var lat = position.coords.latitude;
-	var lon = position.coords.longitude;
+	if ( BUSY ) return ;
 	
-	ajax({ url: api(lat,lon), type: 'json' },
+	BUSY = true ;
+	
+	if ( TIMEOUT !== null ) {
+		clearTimeout(TIMEOUT);
+		TIMEOUT = null ;
+	}
+	
+	main.status('color', FLO ) ;
+	main.status('backgroundColor', BLO ) ;
+	
+	if ( GEOERROR !== null ) {
+		return handle_error('ERROR', GEOERROR);
+	}
+	
+	ajax({ url: api(LAT,LON), type: 'json' },
 	  function(data, status, request) {
 		ERROR = null ;
 		
@@ -243,31 +265,39 @@ function query ( position ) {
 	);
 }
 
-function geofail(){
-	handle_error('ERROR', 'could not load geolocation :(');
+function geosuccess ( position ) {
+	LAT = position.coords.latitude;
+	LON = position.coords.longitude;
+	GEOERROR = null ;
 }
 
-function load(){
-	
-	if ( BUSY ) return ;
-	
-	BUSY = true ;
-	
-	if ( TIMEOUT !== null ) {
-		clearTimeout(TIMEOUT);
-		TIMEOUT = null ;
-	}
-	
-	main.status('color', FLO ) ;
-	main.status('backgroundColor', BLO ) ;
+function geofail(){
+	GEOERROR = 'could not load geolocation :(';
+}
+
+function geostart(){
 	
 	if(navigator && navigator.geolocation){
-		var opts = {maximumAge:60000, timeout:5000, enableHighAccuracy:true};
-		navigator.geolocation.getCurrentPosition(query, geofail, opts);
+		
+		if ( GEOID !== null ) {
+			navigator.geolocation.clearWatch( GEOID ) ;
+			GEOID = null ;
+		}
+		var opts = NAVIGATOR_GEOLOCATION_OPTS;
+		GEOID = navigator.geolocation.watchPosition(geosuccess, geofail, opts);
+		GEOERROR = 'GEOLOCATION LOADING...' ;
 	}
 	else{
-		handle_error('ERROR', 'navigator not enabled :(');
+		GEOERROR = 'navigator not enabled :(' ;
 	}
+}
+
+function geostop(){
+	if ( navigator && navigator.geolocation && GEOID !== null ) {
+		navigator.geolocation.clearWatch( GEOID ) ;
+		GEOID = null ;
+	}
+	GEOERROR = 'GEOLOCATION STOPPED' ;
 }
 
 function bindload ( ) {
@@ -331,4 +361,5 @@ function unbind ( ) {
 	
 }
 
+geostart();
 load();
