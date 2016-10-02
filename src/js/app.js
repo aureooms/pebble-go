@@ -262,7 +262,7 @@ function geosuccess ( position ) {
 	LAT = position.coords.latitude;
 	LON = position.coords.longitude;
 	GEOERROR = null ;
-	load();
+	if ( TIMEOUT === null ) load();
 }
 
 function geofail(){
