@@ -330,29 +330,11 @@ function bindnav ( ) {
 	BUSY = false ;
 }
 
-function unbind ( ) {
-	
-	try{
-		main.off('click');
-	}
-	catch(e){
-	}
-	try{
-		main.off('longClick');
-	}
-	catch(e){
-	}
-	try{
-		main.off('hide');
-	}
-	catch(e){
-	}
-	try{
-		main.off('show');
-	}
-	catch(e){
-	}
-	
+function unbind ( ) {	
+	try { main.off('click') ; }     catch ( e ) { }
+	try { main.off('longClick') ; } catch ( e ) { }
+	try { main.off('hide') ; }      catch ( e ) { }
+	try { main.off('show') ; }      catch ( e ) { }	
 }
 
 geostart();
