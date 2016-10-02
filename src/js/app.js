@@ -262,6 +262,7 @@ function geosuccess ( position ) {
 	LAT = position.coords.latitude;
 	LON = position.coords.longitude;
 	GEOERROR = null ;
+	load();
 }
 
 function geofail(){
@@ -355,4 +356,3 @@ function unbind ( ) {
 }
 
 geostart();
-load();
