@@ -1,15 +1,30 @@
 var UI = require('ui');
 var Vector2 = require('vector2');
 
-
 var ajax = require('ajax');
 var Vibe = require('ui/vibe');
+
+var _lock = false ;
+
+function lock ( ) {
+	if ( _lock ) {
+		console.log( 'could not acquire lock' ) ;
+		return false ;
+	}
+	console.log( 'acquired lock' ) ;
+	_lock = true ;
+	return true ;
+}
+
+function release ( ) {
+	console.log( 'released lock' ) ;
+	_lock = false ;
+}
 
 var GEOID = null ;
 var GEOERROR = 'GEOLOCATION NOT STARTED' ;
 var LAT = null ;
 var LON = null ;
-var BUSY = false ;
 var TIMESTAMP = 0 ;
 var TKO = 60000 ;
 var STOP_ID = null ;
@@ -20,6 +35,7 @@ var ERROR = null ;
 var DATA = null ;
 var MAX_REQUESTS = 10 ;
 var NCLOSEST = 10 ;
+var POLLRATE = 30000 ;
 var NAVIGATOR_GEOLOCATION_OPTS = {
 	maximumAge:0,
 	timeout:5000,
@@ -29,11 +45,13 @@ var NAVIGATOR_GEOLOCATION_OPTS = {
 var TIMEOUT = null;
 
 var BOK = '#55AA55' ;
-var BLO = '#FFFF55' ;
-var BKO = '#FF0055' ;
 var FOK = '#FFFFFF' ;
+var BLO = '#FFFF55' ;
 var FLO = '#000000' ;
+var BKO = '#FF0055' ;
 var FKO = '#FFFFFF' ;
+var BNG = '#FFAA00' ;
+var FNG = '#FFFFFF' ;
 
 var WIDGETS = [];
 
@@ -179,11 +197,12 @@ function other ( ) {
 }
 
 function handle_error ( title , message ) {
+	console.log( 'handle_error:', title, message ) ;
 	if ( Date.now() - TIMESTAMP < TKO ) {
 		bindnav();
 		main.status('color', FOK);
 		main.status('backgroundColor', BOK);
-		TIMEOUT = setTimeout( load , 30000 ) ;
+		TIMEOUT = setTimeout( load , POLLRATE ) ;
 		return ;
 	}
 	main.status('color', FKO);
@@ -196,28 +215,16 @@ function handle_error ( title , message ) {
 	bindload();
 }
 
-function load ( ) {
+
+function loadfail (data, status, request) {
+	handle_error('API failed ' + status , data.message ) ;
+}
+
+function loadsuccess (fg, bg) {
 	
-	if ( BUSY ) return ;
-	
-	BUSY = true ;
-	
-	if ( TIMEOUT !== null ) {
-		clearTimeout(TIMEOUT);
-		TIMEOUT = null ;
-	}
-	
-	main.status('color', FLO ) ;
-	main.status('backgroundColor', BLO ) ;
-	
-	if ( GEOERROR !== null ) {
-		return handle_error('ERROR', GEOERROR);
-	}
-	
-	ajax({ url: api(LAT,LON), type: 'json' },
-	  function(data, status, request) {
+	return function (data, status, request) {
 		ERROR = null ;
-		
+
 		DATA = data ;
 		STOP_INDEX = 0 ;
 		LINE_INDEX = 0 ;
@@ -227,12 +234,12 @@ function load ( ) {
 				if ( DATA.stops[i].id === STOP_ID ) {
 					STOP_INDEX = i ;
 					if ( LINE_ID !== null ) {
-						
+
 						var realtime = DATA.stops[i].realtime;
-						
+
 						if ( realtime.error ) break ;
 						var results = realtime.results ;
-						
+
 						var n = results.length ;
 						for ( var j = 0 ; j < n ; ++j ) {
 							if ( results[j].line === LINE_ID ) {
@@ -246,30 +253,60 @@ function load ( ) {
 			}
 		}
 		_display();
-	    bindnav();
-		main.status('color', FOK);
-		main.status('backgroundColor', BOK);
+		bindnav();
+		main.status('color', fg);
+		main.status('backgroundColor', bg);
 		TIMESTAMP = Date.now();
-		TIMEOUT = setTimeout( load , 30000 ) ;
-	  },
-	  function(data, status, request) {
-		handle_error('API failed ' + status , data.message ) ;
-	  }
-	);
+		TIMEOUT = setTimeout( load , POLLRATE ) ;
+	} ;
+}
+
+function load ( ) {
+	
+	console.log( 'try load' ) ;
+	
+	if ( ! lock() ) return ;
+	
+	console.log( 'load' ) ;
+	
+	if ( TIMEOUT !== null ) {
+		clearTimeout(TIMEOUT);
+		TIMEOUT = null ;
+	}
+	
+	main.status('color', FLO ) ;
+	main.status('backgroundColor', BLO ) ;
+	
+	var fg = FOK ;
+	var bg = BOK ;
+	
+	if ( LAT === null || LON === null  ) {
+		return handle_error('GEOERROR', GEOERROR);
+	}
+	
+	else if ( GEOERROR !== null ) {
+		fg = FNG ;
+		bg = BNG ;
+	}
+	
+	ajax({ url: api(LAT,LON), type: 'json' }, loadsuccess( fg, bg ), loadfail ) ;
 }
 
 function geosuccess ( position ) {
 	LAT = position.coords.latitude;
 	LON = position.coords.longitude;
+	console.log( 'geosuccess', LAT, LON ) ;
 	GEOERROR = null ;
 	if ( TIMEOUT === null ) load();
 }
 
 function geofail(){
+	console.log( 'geofail' ) ;
 	GEOERROR = 'could not load geolocation :(';
 }
 
 function geostart(){
+	console.log( 'geostart' );
 	
 	if(navigator && navigator.geolocation){
 		
@@ -287,6 +324,7 @@ function geostart(){
 }
 
 function geostop(){
+	console.log( 'geostop' );
 	if ( navigator && navigator.geolocation && GEOID !== null ) {
 		navigator.geolocation.clearWatch( GEOID ) ;
 		GEOID = null ;
@@ -297,40 +335,45 @@ function geostop(){
 function bindload ( ) {
 	
 	unbind();
+	console.log('bindload'); 
 
-	main.on('click', 'select', function(e) { load() ; } ) ;
-	main.on('longClick', 'select', function(e) { load() ; } ) ;
-	main.on('longClick', 'down', function(e) { load() ; } ) ;
-	main.on('longClick', 'up', function(e) { load() ; } ) ;
+	main.on('click', 'select', function(e) { console.log('click'); load() ; } ) ;
+	main.on('longClick', 'select', function(e) { console.log('longClick'); load() ; } ) ;
+	//main.on('longClick', 'down', function(e) { load() ; } ) ;
+	//main.on('longClick', 'up', function(e) { load() ; } ) ;
 	
-	BUSY = false ;
+	release();
 	
 }
 
 function bindnav ( ) {
 	
 	unbind();
+	console.log('bindnav'); 
 	
-	main.on('click', 'select', function(e) { other() ; } ) ;
-	main.on('longClick', 'select', function(e) { load() ; } ) ;
-	main.on('longClick', 'down', function(e) { load() ; } ) ;
-	main.on('longClick', 'up', function(e) { load() ; } ) ;
+	main.on('click', 'select', function(e) { console.log('click'); other() ; } ) ;
+	main.on('longClick', 'select', function(e) { console.log('longClick'); load() ; } ) ;
+	//main.on('longClick', 'down', function(e) { load() ; } ) ;
+	//main.on('longClick', 'up', function(e) { load() ; } ) ;
 
-	main.on('hide', function(){
+	main.on('hide', function(e){
+		console.log('hide'); 
 		if ( TIMEOUT !== null ) {
 			clearTimeout(TIMEOUT);
 			TIMEOUT = null ;
 		}
 	});
 
-	main.on('show', function(){
+	main.on('show', function(e){
+		console.log('show'); 
 		load();
 	});
 	
-	BUSY = false ;
+	release();
 }
 
-function unbind ( ) {	
+function unbind ( ) {
+	console.log('unbind'); 	
 	try { main.off('click') ; }     catch ( e ) { }
 	try { main.off('longClick') ; } catch ( e ) { }
 	try { main.off('hide') ; }      catch ( e ) { }
