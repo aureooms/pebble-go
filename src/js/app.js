@@ -206,7 +206,7 @@ function clear ( ) {
 	WIDGETS = [] ;
 }
 
-function _display ( ) {
+function _display ( quiet ) {
 	
 	console.log('display');
 	
@@ -274,7 +274,7 @@ function _display ( ) {
 		ad(fline);
 		ad(fminutes);
 
-		if ( k === 1 && _when.minutes === 0 ) Vibe.vibrate('double');
+		if ( !quiet && k === 1 && _when.minutes === 0 ) Vibe.vibrate('double');
 		
 	}
 	
@@ -288,7 +288,7 @@ function _display ( ) {
 function other ( ) {
 	++STOP_INDEX ;
 	if ( STOP_INDEX >= DATA.stops.length ) STOP_INDEX = 0 ;
-	_display ( ) ;
+	_display( true ) ;
 }
 
 function handle_error ( title , message ) {
@@ -331,12 +331,12 @@ function _update_stop_index(){
 	}
 }
 
-function loadsuccess (cb, fg, bg) {
+function loadsuccess (cb, fg, bg, quiet) {
 	return function (data, status, request) {
 		ERROR = null ;
 		DATA = data ;
 		_update_stop_index() ;
-		_display();
+		_display(quiet);
 		bindnav();
 		MAIN.status('color', fg);
 		MAIN.status('backgroundColor', bg);
@@ -346,7 +346,7 @@ function loadsuccess (cb, fg, bg) {
 	} ;
 }
 
-function load ( cb ) {
+function load ( cb, quiet ) {
 	
 	console.log( 'try load' ) ;
 	
@@ -374,7 +374,7 @@ function load ( cb ) {
 		bg = BNG ;
 	}
 	
-	ajax({ url: api(LAT,LON), type: 'json' }, loadsuccess( cb, fg, bg ), loadfail( cb ) ) ;
+	ajax({ url: api(LAT,LON), type: 'json' }, loadsuccess( cb, fg, bg, quiet ), loadfail( cb ) ) ;
 }
 
 // geolocation
@@ -385,13 +385,13 @@ function geosuccess ( position ) {
 	console.log( 'geosuccess', LAT, LON ) ;
 	var failed_before = GEOERROR !== null ;
 	GEOERROR = null ;
-	if ( TIMEOUT === null || failed_before ) load();
+	if ( TIMEOUT === null || failed_before ) load( null , true );
 }
 
 function geofail(){
 	console.log( 'geofail' ) ;
 	GEOERROR = 'could not load geolocation :(';
-	if ( TIMEOUT === null ) load();
+	if ( TIMEOUT === null ) load( null , true );
 }
 
 function geostart(){
@@ -426,8 +426,8 @@ function bindload ( ) {
 	unbind();
 	console.log('bindload'); 
 
-	MAIN.on('click', 'select', function(e) { console.log('click'); load() ; } ) ;
-	MAIN.on('longClick', 'select', function(e) { console.log('longClick'); load() ; } ) ;
+	MAIN.on('click', 'select', function(e) { console.log('click'); load( null , true ) ; } ) ;
+	MAIN.on('longClick', 'select', function(e) { console.log('longClick'); load( null , true ) ; } ) ;
 	
 	release();
 	
@@ -439,7 +439,7 @@ function bindnav ( ) {
 	console.log('bindnav'); 
 	
 	MAIN.on('click', 'select', function(e) { console.log('click'); other() ; } ) ;
-	MAIN.on('longClick', 'select', function(e) { console.log('longClick'); load() ; } ) ;
+	MAIN.on('longClick', 'select', function(e) { console.log('longClick'); load( null , true ) ; } ) ;
 
 	MAIN.on('hide', function(e){
 		console.log('hide'); 
@@ -452,7 +452,7 @@ function bindnav ( ) {
 
 	MAIN.on('show', function(e){
 		console.log('show'); 
-		load();
+		load( null , true );
 	});
 	
 	release();
@@ -471,7 +471,7 @@ function unbind ( ) {
 unfreeze();
 if ( DATA !== null ) {
 	_update_stop_index();
-	_display();
+	_display(true);
 }
 if ( LAT !== null && LON !== null ) load( geostart );
 else geostart();
