@@ -253,8 +253,11 @@ function handle_error ( title , message ) {
 }
 
 
-function loadfail (data, status, request) {
-	handle_error('API failed ' + status , data.message ) ;
+function loadfail (cb) {
+	return function (data, status, request) {
+		handle_error('API failed ' + status , data.message ) ;
+		if ( cb ) cb() ;
+	} ;
 }
 
 function _update_stop_index(){
@@ -270,7 +273,7 @@ function _update_stop_index(){
 	}
 }
 
-function loadsuccess (fg, bg) {
+function loadsuccess (cb, fg, bg) {
 	return function (data, status, request) {
 		ERROR = null ;
 		DATA = data ;
@@ -281,10 +284,11 @@ function loadsuccess (fg, bg) {
 		MAIN.status('backgroundColor', bg);
 		TIMESTAMP = Date.now();
 		TIMEOUT = setTimeout( load , POLLRATE ) ;
+		if ( cb ) cb() ;
 	} ;
 }
 
-function load ( ) {
+function load ( cb ) {
 	
 	console.log( 'try load' ) ;
 	
@@ -312,7 +316,7 @@ function load ( ) {
 		bg = BNG ;
 	}
 	
-	ajax({ url: api(LAT,LON), type: 'json' }, loadsuccess( fg, bg ), loadfail ) ;
+	ajax({ url: api(LAT,LON), type: 'json' }, loadsuccess( cb, fg, bg ), loadfail( cb ) ) ;
 }
 
 // geolocation
@@ -410,5 +414,5 @@ if ( DATA !== null ) {
 	_update_stop_index();
 	_display();
 }
-if ( LAT !== null && LON !== null ) load();
-geostart();
+if ( LAT !== null && LON !== null ) load( geostart );
+else geostart();
