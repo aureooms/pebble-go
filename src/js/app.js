@@ -138,6 +138,58 @@ function api ( lat , lon ) {
 	return 'https://stib-mivb-api.herokuapp.com/realtime/nclosest/' + n + '/' + lat + '/' + lon + '?max_requests=' + m ;
 }
 
+function utc ( string ) {
+	// 2016-10-06T12:12:41+02:00
+	var _year = string.substring( 0 , 4 ) ;
+	var _month = string.substring( 5 , 7 ) ;
+	var _day = string.substring( 8 , 10 ) ;
+	var _hour = string.substring( 11 , 13 ) ;
+	var _minutes = string.substring( 14 , 16 ) ;
+	var _seconds = string.substring( 17 , 19 ) ;
+	var _tzs = string[19] ;
+	var _tzh = string.substring( 20 , 22 ) ;
+	var _tzm = string.substring( 23 , 25 ) ;
+	
+	var year = parseInt( _year , 10 ) ;
+	var month = parseInt( _month , 10 ) ;
+	var day = parseInt( _day , 10 ) ;
+	var hour = parseInt( _hour , 10 ) ;
+	var minutes = parseInt( _minutes , 10 ) ;
+	var seconds = parseInt( _seconds , 10 ) ;
+	var tzs = _tzs === '+' ? 1 : -1 ;
+	var tzh = parseInt( _tzh , 10 ) ;
+	var tzm = parseInt( _tzm , 10 ) ;
+	
+	// account for timezone
+	hour -= tzs * tzh ;
+	minutes -= tzs * tzm ;
+	
+	// * hour or minutes can be negative, handled correctly by UTC
+	// * month must be between 0 and 11 /!\
+	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/UTC
+	return Date.UTC(year, month - 1, day, hour, minutes, seconds);
+}
+
+function when ( next ) {
+	var expected_arrival =  utc( next.when ) ;
+	var now = Date.now() ;
+	var seconds = ( expected_arrival - now ) / 1000 ;
+	
+	console.log( expected_arrival , now , seconds ) ;
+	
+	if ( seconds < -600 ) {
+		// 10 minutes ago can be safely ignored
+		return null ;
+	}
+	else if  ( seconds < 0 ) {
+		//  minutes ago can be safely ignored
+		return { color : '#FF0055' , minutes : 0 } ;
+	}
+	else {
+		return { color : '#555555' , minutes : seconds / 60 | 0 } ;
+	}
+}
+
 function ad ( f ) {
 	WIDGETS.push(f);
 	MAIN.add(f);
@@ -173,17 +225,18 @@ function _display ( ) {
 	
 	var n = DATA.stops[STOP_INDEX].realtime.results.length;
 	
-	if ( n === 0 ) {
-		FMESSAGE.text( 'nothing right now' );
-		ad(FMESSAGE);
-		return ;
-	}
+	var k = 0 ;
 	
 	for ( var i = 0 ; i < n ; ++i ) {
 	
 		var next = DATA.stops[STOP_INDEX].realtime.results[i] ;
+		
+		var _when = when( next ) ;
+		
+		if ( _when === null ) continue ;
 
-		var offset = i*35 ;
+		var offset = k*35 ;
+		++k ;
 
 		var fnumber = new UI.Text({
 		 position: new Vector2(LEFT, 30+offset),
@@ -210,8 +263,8 @@ function _display ( ) {
 		 position: new Vector2(LEFT+W-54,30+offset),
 		 size: new Vector2(22, 20),
 		 font: 'gothic-24-bold',
-		 text: next.minutes,
-		 color: '#555555' ,
+		 text: _when.minutes ,
+		 color: _when.color ,
 		 backgroundColor: 'none',
 		 textAlign: 'center',
 		 textOverflow: 'fill'
@@ -221,8 +274,13 @@ function _display ( ) {
 		ad(fline);
 		ad(fminutes);
 
-		if ( i === 0 && next.minutes === 0 ) Vibe.vibrate('double');
+		if ( k === 1 && _when.minutes === 0 ) Vibe.vibrate('double');
 		
+	}
+	
+	if ( k === 0 ) {
+		FMESSAGE.text( 'nothing right now' );
+		ad(FMESSAGE);
 	}
 	
 }
@@ -333,6 +391,7 @@ function geosuccess ( position ) {
 function geofail(){
 	console.log( 'geofail' ) ;
 	GEOERROR = 'could not load geolocation :(';
+	if ( TIMEOUT === null ) load();
 }
 
 function geostart(){
