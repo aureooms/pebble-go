@@ -173,7 +173,9 @@ function utc ( string ) {
 function when ( next ) {
 	var expected_arrival =  utc( next.when ) ;
 	var now = Date.now() ;
-	var seconds = ( expected_arrival - now ) / 1000 ;
+	// the +5 is to account for code execution
+	// between data retrieval and display
+	var seconds = ( expected_arrival - now ) / 1000 + 5 ;
 	
 	console.log( expected_arrival , now , seconds ) ;
 	
@@ -182,7 +184,7 @@ function when ( next ) {
 		return null ;
 	}
 	else if  ( seconds < 0 ) {
-		//  minutes ago can be safely ignored
+		// probably already gone
 		return { color : '#FF0055' , minutes : 0 } ;
 	}
 	else {
